@@ -3,8 +3,9 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 	"time"
+
+	"pixiv-tg-bot/cmd"
 
 	"golang.org/x/net/proxy"
 	tele "gopkg.in/telebot.v3"
@@ -12,13 +13,13 @@ import (
 
 func run() error {
 	// 设置代理
-	dialer, err := proxy.SOCKS5("tcp", "127.0.0.1:10808", &proxy.Auth{}, proxy.Direct)
+	dialer, err := proxy.SOCKS5("tcp", cmd.PROXY_ADDRESS, &proxy.Auth{}, proxy.Direct)
 	if err != nil {
 		return err
 	}
 
 	pref := tele.Settings{
-		Token:  os.Args[1],
+		Token:  cmd.BOT_TOKEN,
 		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
 		Client: &http.Client{Transport: &http.Transport{Dial: dialer.Dial}},
 	}

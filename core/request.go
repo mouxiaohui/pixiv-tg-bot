@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 )
@@ -10,11 +11,25 @@ var HEADER = map[string]string{
 }
 var CLIENT = &http.Client{}
 
-func request(url string) (body string, err error) {
-	body = ""
+type Result[T any] struct {
+	Error   bool   `json:"error"`
+	Message string `json:"message"`
+	Body    T      `json:"body"`
+}
+
+func unmarshalJSON[T any](data []byte) (T, error) {
+	var s T
+	err := json.Unmarshal(data, &s)
+
+	return s, err
+}
+
+func request[T any](url string) (Result[T], error) {
+	r := Result[T]{}
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return
+		return r, err
 	}
 
 	// 设置Header
@@ -24,15 +39,19 @@ func request(url string) (body string, err error) {
 
 	resp, err := CLIENT.Do(req)
 	if err != nil {
-		return
+		return r, err
 	}
 	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return
+		return r, err
 	}
-	body = string(b)
 
-	return
+	err = json.Unmarshal(b, &r)
+	if err != nil {
+		return r, err
+	}
+
+	return r, nil
 }

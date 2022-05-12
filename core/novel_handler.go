@@ -1,7 +1,7 @@
 package core
 
 import (
-	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -10,14 +10,28 @@ import (
 
 var IsReceiveNovel = false
 
+type ChanResult struct {
+	Id  string
+	Err error
+}
+
+type SubscribeDetails struct {
+	Success []string
+	Failure []string
+	Errors  []error
+}
+
 type Novel struct {
-	id            string
-	title         string
-	updateDate    string
-	contentTitles []struct {
-		id    string
-		title string
-	}
+	Id            string         `json:"id"`
+	Title         string         `json:"title"`
+	UpdateDate    string         `json:"updateDate"`
+	ContentTitles []ContentTitle `json:"contentTitles"`
+}
+
+type ContentTitle struct {
+	Id        string `json:"id"`
+	Title     string `json:"title"`
+	Available bool   `json:"available"`
 }
 
 func novelHandler(b *tele.Bot) {
@@ -26,9 +40,11 @@ func novelHandler(b *tele.Bot) {
 		if IsReceiveNovel {
 			IsReceiveNovel = false
 			var text = c.Text()
-			err := subscribeNovels(strings.Split(text, ","))
-			if err != nil {
-				return errors.New("订阅失败! error: " + err.Error())
+			sd := subscribeNovels(strings.Split(text, ","))
+			if len(sd.Errors) > 0 {
+				for _, e := range sd.Errors {
+					fmt.Println("error: ", e)
+				}
 			}
 
 			return c.Reply("订阅成功!")
@@ -43,51 +59,70 @@ func novelHandler(b *tele.Bot) {
 	})
 }
 
-func subscribeNovels(ids []string) error {
-	wg := &sync.WaitGroup{}
-	limiter := make(chan bool, 10) // 限制并发数
+// 订阅小说列表
+func subscribeNovels(ids []string) SubscribeDetails {
+	sd := SubscribeDetails{}
+	ch := make(chan ChanResult, len(ids))
 
 	for _, id := range ids {
-		wg.Add(1)
-		limiter <- true
-		go subscribeNovel(id, limiter, wg)
+		go func(id string) {
+			n := subscribeNovel(id, ch)
+			fmt.Println("Novel: ", n)
+		}(id)
 	}
 
-	wg.Wait()
+	i := len(ids)
+Loop:
+	for {
+		select {
+		case res := <-ch:
+			i--
+			if res.Err != nil {
+				sd.Failure = append(sd.Failure, res.Id)
+				sd.Errors = append(sd.Errors, res.Err)
+			} else {
+				sd.Success = append(sd.Success, res.Id)
+			}
+			if i == 0 {
+				break Loop
+			}
+		}
+	}
 
-	return nil
+	return sd
 }
 
-func subscribeNovel(id string, limiter chan bool, wg *sync.WaitGroup) error {
-	defer wg.Done()
-
-	var wg2 sync.WaitGroup
+// 订阅小说
+func subscribeNovel(id string, ch chan ChanResult) Novel {
 	var err error
-	bodyc := ""
+	wg2 := &sync.WaitGroup{}
+	n := Novel{}
+	ctTitles := []ContentTitle{}
+	chRes := ChanResult{Id: id, Err: nil}
 
 	wg2.Add(1)
 	go func() {
-		body, e := request(BASE_URL + "/ajax/novel/series/" + id + "/content_titles")
-		if e != nil {
-			err = e
+		defer wg2.Done()
+		// 获取小说章节
+		res, err := request[[]ContentTitle](BASE_URL + "/ajax/novel/series/" + id + "/content_titles")
+		if err == nil {
+			ctTitles = res.Body
 		}
-		bodyc = body
-		wg2.Done()
 	}()
 
-	body, err := request(BASE_URL + "/ajax/novel/series/" + id)
+	// 获取小说信息
+	resNovel, err := request[Novel](BASE_URL + "/ajax/novel/series/" + id)
 
 	wg2.Wait()
 
 	if err != nil {
-		return err
+		chRes.Err = err
+		ch <- chRes
+		return n
 	}
 
-	println("================")
-	println(bodyc)
-	println(body)
+	resNovel.Body.ContentTitles = ctTitles
 
-	<-limiter
-
-	return nil
+	ch <- chRes
+	return resNovel.Body
 }

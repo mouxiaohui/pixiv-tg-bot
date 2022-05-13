@@ -50,7 +50,7 @@ func Run() error {
 
 func addFeatures(b *tele.Bot) {
 	b.Handle("/start", func(c tele.Context) error {
-		return c.Send("🤖: 欢迎使用 Pixiv Bot! 😘")
+		return c.Send("欢迎使用 Pixiv Bot! 😘")
 	})
 
 	b.Handle("/help", func(c tele.Context) error {

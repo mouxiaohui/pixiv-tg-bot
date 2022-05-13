@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
@@ -62,7 +63,22 @@ func novelHandler(b *tele.Bot) {
 
 	b.Handle("/subnovel", func(c tele.Context) error {
 		IsReceiveNovel = true
-		return c.Reply("🤖: 请发送小说ID, 如果有多个用逗号隔开, 例如: 1234,2234,3234")
+		return c.Reply("请发送小说ID, 如果有多个用逗号隔开, 例如: 1234,2234,3234")
+	})
+
+	b.Handle("/showsubnovel", func(c tele.Context) error {
+		ns, err := queryAllNovel()
+		if err != nil {
+			return c.Reply("查询失败! Error: " + err.Error())
+		}
+
+		r := "查询结果:\n"
+		for i, n := range ns {
+			r += fmt.Sprintf("%d. %s\n", i, n.Title)
+			r += fmt.Sprintf("    > 地址: %s%s\n", BASE_URL+"/novel/series/", n.Id)
+		}
+
+		return c.Reply(r)
 	})
 }
 
@@ -75,7 +91,7 @@ func subscribeNovels(ids []string) SubscribeDetails {
 		go func(id string) {
 			n := subscribeNovel(id, ch)
 			if n.Id != "" {
-				err := saveNovels(n)
+				err := saveNovel(n)
 				if err != nil {
 					sd.Success = removeArrVal(sd.Success, id)
 					sd.Failure = append(sd.Failure, id)
@@ -140,7 +156,7 @@ func subscribeNovel(id string, ch chan ChanResult) Novel {
 }
 
 // 持久化小说
-func saveNovels(n Novel) error {
+func saveNovel(n Novel) error {
 	stmt, err := DB.Prepare("INSERT INTO novels(id, title, update_date) values(?,?,?)")
 	if err != nil {
 		return err
@@ -163,4 +179,50 @@ func saveNovels(n Novel) error {
 	}
 
 	return nil
+}
+
+// 查询所有小说
+func queryAllNovel() ([]Novel, error) {
+	var ns []Novel
+	rows, err := DB.Query("select * from novels")
+	if err != nil {
+		return ns, err
+	}
+
+	for rows.Next() {
+		var id string
+		var title string
+		var updateDate string
+
+		err := rows.Scan(&id, &title, &updateDate)
+		if err != nil {
+			return ns, err
+		}
+
+		ns = append(ns, Novel{Id: id, Title: title, UpdateDate: updateDate})
+	}
+
+	return ns, nil
+}
+
+// 查询小说所有的内容
+func queryNovelContent(id string) ([]ContentTitle, error) {
+	var cts []ContentTitle
+	r, err := DB.Query("select * from content_titles where novel_id = " + id)
+	if err != nil {
+		return cts, err
+	}
+
+	for r.Next() {
+		var id string
+		var title string
+		var novel_id string
+		err = r.Scan(&id, &title, &novel_id)
+		if err != nil {
+			return cts, err
+		}
+		cts = append(cts, ContentTitle{Id: id, Title: title})
+	}
+
+	return cts, nil
 }

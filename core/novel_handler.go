@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 
@@ -18,7 +17,6 @@ type ChanResult struct {
 type SubscribeDetails struct {
 	Success []string
 	Failure []string
-	Errors  []error
 }
 
 type Novel struct {
@@ -29,25 +27,34 @@ type Novel struct {
 }
 
 type ContentTitle struct {
-	Id        string `json:"id"`
-	Title     string `json:"title"`
-	Available bool   `json:"available"`
+	Id    string `json:"id"`
+	Title string `json:"title"`
 }
 
+// 机器人小说相关功能
 func novelHandler(b *tele.Bot) {
 	b.Handle(tele.OnText, func(c tele.Context) error {
 		// 判断是否等待接收novel
 		if IsReceiveNovel {
 			IsReceiveNovel = false
 			var text = c.Text()
+			var reply string
+
 			sd := subscribeNovels(strings.Split(text, ","))
-			if len(sd.Errors) > 0 {
-				for _, e := range sd.Errors {
-					fmt.Println("error: ", e)
+			if len(sd.Success) > 0 {
+				reply += "订阅成功:\n"
+				for _, s := range sd.Success {
+					reply += (">  " + s + "\n")
+				}
+			}
+			if len(sd.Failure) > 0 {
+				reply += "订阅失败:\n"
+				for _, f := range sd.Failure {
+					reply += (">  " + f + "\n")
 				}
 			}
 
-			return c.Reply("订阅成功!")
+			return c.Reply(reply)
 		}
 
 		return nil
@@ -67,7 +74,13 @@ func subscribeNovels(ids []string) SubscribeDetails {
 	for _, id := range ids {
 		go func(id string) {
 			n := subscribeNovel(id, ch)
-			fmt.Println("Novel: ", n)
+			if n.Id != "" {
+				err := saveNovels(n)
+				if err != nil {
+					sd.Success = removeArrVal(sd.Success, id)
+					sd.Failure = append(sd.Failure, id)
+				}
+			}
 		}(id)
 	}
 
@@ -79,7 +92,6 @@ Loop:
 			i--
 			if res.Err != nil {
 				sd.Failure = append(sd.Failure, res.Id)
-				sd.Errors = append(sd.Errors, res.Err)
 			} else {
 				sd.Success = append(sd.Success, res.Id)
 			}
@@ -125,4 +137,30 @@ func subscribeNovel(id string, ch chan ChanResult) Novel {
 
 	ch <- chRes
 	return resNovel.Body
+}
+
+// 持久化小说
+func saveNovels(n Novel) error {
+	stmt, err := DB.Prepare("INSERT INTO novels(id, title, update_date) values(?,?,?)")
+	if err != nil {
+		return err
+	}
+	_, err = stmt.Exec(n.Id, n.Title, n.UpdateDate)
+	if err != nil {
+		return err
+	}
+
+	stmt2, err := DB.Prepare("INSERT INTO content_titles(id, title, novel_id) values(?,?,?)")
+	if err != nil {
+		return err
+	}
+
+	for _, ct := range n.ContentTitles {
+		_, err = stmt2.Exec(ct.Id, ct.Title, n.Id)
+		if err != nil {
+			break
+		}
+	}
+
+	return nil
 }

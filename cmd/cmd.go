@@ -10,6 +10,7 @@ import (
 var (
 	BOT_TOKEN     string
 	PROXY_ADDRESS string
+	DB_PATH       string
 )
 
 func init() {
@@ -18,6 +19,9 @@ func init() {
 		Name:    "pixiv telegram bot",
 		Action: func(c *cli.Context) error {
 			println("Start...")
+			if DB_PATH == "" {
+				DB_PATH = "./database/pixiv.db"
+			}
 			return nil
 		},
 	}
@@ -34,6 +38,13 @@ func init() {
 			Aliases:     []string{"p"},
 			Usage:       "代理地址, 比如(127.0.0.1:10808)",
 			Destination: &PROXY_ADDRESS,
+			Required:    false,
+		},
+		&cli.StringFlag{
+			Name:        "dbPath",
+			Aliases:     []string{"d"},
+			Usage:       "Sqlite3的数据库路径(默认为: './database/pixiv.db')",
+			Destination: &DB_PATH,
 			Required:    false,
 		},
 	}

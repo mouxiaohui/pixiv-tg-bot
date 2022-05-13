@@ -1,0 +1,23 @@
+package core
+
+import (
+	"database/sql"
+	"pixiv-tg-bot/cmd"
+
+	_ "github.com/mattn/go-sqlite3"
+)
+
+var DB *sql.DB
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+// 初始化数据库
+func init() {
+	db, err := sql.Open("sqlite3", cmd.DB_PATH)
+	checkErr(err)
+	DB = db
+}

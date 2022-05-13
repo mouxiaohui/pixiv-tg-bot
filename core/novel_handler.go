@@ -21,15 +21,14 @@ type SubscribeDetails struct {
 }
 
 type Novel struct {
-	Id            string         `json:"id"`
-	Title         string         `json:"title"`
-	UpdateDate    string         `json:"updateDate"`
-	ContentTitles []ContentTitle `json:"contentTitles"`
+	Id         string `json:"id"`
+	Title      string `json:"title"`
+	UpdateDate string `json:"updateDate"`
+	Content    string `json:"content"`
 }
 
 type ContentTitle struct {
-	Id    string `json:"id"`
-	Title string `json:"title"`
+	Id string `json:"id"`
 }
 
 // 机器人小说相关功能
@@ -80,6 +79,7 @@ func novelHandler(b *tele.Bot) {
 
 		return c.Reply(r)
 	})
+
 }
 
 // 订阅小说列表
@@ -149,7 +149,12 @@ func subscribeNovel(id string, ch chan ChanResult) Novel {
 		return n
 	}
 
-	resNovel.Body.ContentTitles = ctTitles
+	for i, ct := range ctTitles {
+		resNovel.Body.Content += ct.Id
+		if i != len(ctTitles)-1 {
+			resNovel.Body.Content += ","
+		}
+	}
 
 	ch <- chRes
 	return resNovel.Body
@@ -157,25 +162,13 @@ func subscribeNovel(id string, ch chan ChanResult) Novel {
 
 // 持久化小说
 func saveNovel(n Novel) error {
-	stmt, err := DB.Prepare("INSERT INTO novels(id, title, update_date) values(?,?,?)")
+	stmt, err := DB.Prepare("INSERT INTO novels(id, title, update_date, content) values(?,?,?,?)")
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(n.Id, n.Title, n.UpdateDate)
+	_, err = stmt.Exec(n.Id, n.Title, n.UpdateDate, n.Content)
 	if err != nil {
 		return err
-	}
-
-	stmt2, err := DB.Prepare("INSERT INTO content_titles(id, title, novel_id) values(?,?,?)")
-	if err != nil {
-		return err
-	}
-
-	for _, ct := range n.ContentTitles {
-		_, err = stmt2.Exec(ct.Id, ct.Title, n.Id)
-		if err != nil {
-			break
-		}
 	}
 
 	return nil
@@ -193,36 +186,15 @@ func queryAllNovel() ([]Novel, error) {
 		var id string
 		var title string
 		var updateDate string
+		var content string
 
-		err := rows.Scan(&id, &title, &updateDate)
+		err := rows.Scan(&id, &title, &updateDate, &content)
 		if err != nil {
 			return ns, err
 		}
 
-		ns = append(ns, Novel{Id: id, Title: title, UpdateDate: updateDate})
+		ns = append(ns, Novel{Id: id, Title: title, UpdateDate: updateDate, Content: content})
 	}
 
 	return ns, nil
-}
-
-// 查询小说所有的内容
-func queryNovelContent(id string) ([]ContentTitle, error) {
-	var cts []ContentTitle
-	r, err := DB.Query("select * from content_titles where novel_id = " + id)
-	if err != nil {
-		return cts, err
-	}
-
-	for r.Next() {
-		var id string
-		var title string
-		var novel_id string
-		err = r.Scan(&id, &title, &novel_id)
-		if err != nil {
-			return cts, err
-		}
-		cts = append(cts, ContentTitle{Id: id, Title: title})
-	}
-
-	return cts, nil
 }

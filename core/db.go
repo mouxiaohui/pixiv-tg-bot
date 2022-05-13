@@ -29,14 +29,9 @@ func createTable() {
 CREATE TABLE IF NOT EXISTS "novels" (
    "id" VARCHAR(20) PRIMARY KEY,
    "title" VARCHAR(100) NULL,
-   "update_date" VARCHAR(50) NULL
+   "update_date" VARCHAR(50) NULL,
+   "content" Text NULL
 );
-
-CREATE TABLE IF NOT EXISTS "content_titles" (
-	"id" VARCHAR(20) PRIMARY KEY,
-	"title" VARCHAR(100) NULL,
-	"novel_id" VARCHAR(20)
- );
 `
 
 	_, err := DB.Exec(sqlTable)

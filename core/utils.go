@@ -9,3 +9,15 @@ func removeArrVal[T string | int](data []T, target T) []T {
 
 	return data
 }
+
+func arrToString(arr []string, separator string) string {
+	var res string
+	for i, a := range arr {
+		res += a
+		if i != len(arr)-1 {
+			res += separator
+		}
+	}
+
+	return res
+}

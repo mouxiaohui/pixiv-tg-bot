@@ -21,10 +21,10 @@ type SubscribeDetails struct {
 }
 
 type Novel struct {
-	Id         string `json:"id"`
-	Title      string `json:"title"`
-	UpdateDate string `json:"updateDate"`
-	Content    string `json:"content"`
+	Id         string   `json:"id"`
+	Title      string   `json:"title"`
+	UpdateDate string   `json:"updateDate"`
+	Content    []string `json:"content"`
 }
 
 type ContentTitle struct {
@@ -80,6 +80,67 @@ func novelHandler(b *tele.Bot) {
 		return c.Reply(r)
 	})
 
+	b.Handle("/checknovelupdate", func(c tele.Context) error {
+		ns, err := queryAllNovel()
+		if err != nil {
+			return c.Reply("查询失败! Error: " + err.Error())
+		}
+
+		wg := &sync.WaitGroup{}
+		var updateNovels []Novel
+		for _, n := range ns {
+			wg.Add(1)
+			go func(n Novel) {
+				updateNovel, err := checkNovelUpdate(n)
+				if err == nil && updateNovel.Id != "" {
+					updateNovels = append(updateNovels, updateNovel)
+				}
+				wg.Done()
+			}(n)
+		}
+
+		wg.Wait()
+
+		if len(updateNovels) == 0 {
+			return c.Reply("暂无更新...")
+		}
+
+		reply := "查询到更新:\n"
+		for _, n := range updateNovels {
+			reply += (n.Title + "\n")
+			for _, c := range n.Content {
+				reply += fmt.Sprintf("    > %s%s\n", BASE_URL+"/novel/show.php?id=", c)
+			}
+		}
+
+		return c.Reply(reply)
+	})
+}
+
+// 查询小说是否更新，返回小说更新的内容
+func checkNovelUpdate(n Novel) (Novel, error) {
+	var res Novel
+
+	respNovel, err := request[Novel](BASE_URL + "/ajax/novel/series/" + n.Id)
+	if err != nil {
+		return res, err
+	}
+	if respNovel.Body.UpdateDate != n.UpdateDate && respNovel.Body.Id != "" {
+		respContent, err := request[[]ContentTitle](BASE_URL + "/ajax/novel/series/" + n.Id + "/content_titles")
+		if err != nil {
+			return res, err
+		}
+
+		var content []string
+		for _, ct := range respContent.Body {
+			content = append(content, ct.Id)
+		}
+
+		respNovel.Body.Content = content[len(n.Content):]
+		res = respNovel.Body
+	}
+
+	return res, nil
 }
 
 // 订阅小说列表
@@ -132,14 +193,14 @@ func subscribeNovel(id string, ch chan ChanResult) Novel {
 	go func() {
 		defer wg2.Done()
 		// 获取小说章节
-		res, err := request[[]ContentTitle](BASE_URL + "/ajax/novel/series/" + id + "/content_titles")
+		resp, err := request[[]ContentTitle](BASE_URL + "/ajax/novel/series/" + id + "/content_titles")
 		if err == nil {
-			ctTitles = res.Body
+			ctTitles = resp.Body
 		}
 	}()
 
 	// 获取小说信息
-	resNovel, err := request[Novel](BASE_URL + "/ajax/novel/series/" + id)
+	respNovel, err := request[Novel](BASE_URL + "/ajax/novel/series/" + id)
 
 	wg2.Wait()
 
@@ -149,15 +210,12 @@ func subscribeNovel(id string, ch chan ChanResult) Novel {
 		return n
 	}
 
-	for i, ct := range ctTitles {
-		resNovel.Body.Content += ct.Id
-		if i != len(ctTitles)-1 {
-			resNovel.Body.Content += ","
-		}
+	for _, ct := range ctTitles {
+		respNovel.Body.Content = append(respNovel.Body.Content, ct.Id)
 	}
 
 	ch <- chRes
-	return resNovel.Body
+	return respNovel.Body
 }
 
 // 持久化小说
@@ -193,7 +251,12 @@ func queryAllNovel() ([]Novel, error) {
 			return ns, err
 		}
 
-		ns = append(ns, Novel{Id: id, Title: title, UpdateDate: updateDate, Content: content})
+		ns = append(ns, Novel{
+			Id:         id,
+			Title:      title,
+			UpdateDate: updateDate,
+			Content:    strings.Split(content, ","),
+		})
 	}
 
 	return ns, nil

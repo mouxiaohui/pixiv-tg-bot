@@ -87,6 +87,9 @@ func novelHandler(b *tele.Bot) {
 		}
 
 		r := "查询结果:\n"
+		if len(ns) == 0 {
+			return c.Reply("暂无订阅...")
+		}
 		for i, n := range ns {
 			r += fmt.Sprintf("%d. %s\n", i+1, n.Title)
 			r += fmt.Sprintf("    > 地址: %s%s\n", BASE_URL+"/novel/series/", n.Id)
@@ -181,8 +184,6 @@ func subscribeNovels(ids []string) SubscribeDetails {
 				ch <- ChanResult{Id: id, Err: nil}
 				return
 			}
-
-			println("=====")
 
 			n = subscribeNovel(id, ch)
 			if n.Id != "" {

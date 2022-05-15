@@ -13,12 +13,12 @@ import (
 const BASE_URL = "https://www.pixiv.net"
 const HELP_MESSAGE = `
 🤖功能列表
-/start 				快速开始
-/help  				查看帮助信息
-/subnovels  		订阅小说
-/showsubnovels  	查看已经订阅的小说
-/checknovelupdate 	查看订阅的小说是否更新
-/removesubnovels  	移除订阅的小说
+/start              快速开始
+/help               查看帮助信息
+/subnovels          订阅小说
+/showsubnovels      查看已经订阅的小说
+/checknovelupdate   查看订阅的小说是否更新
+/removesubnovels    移除订阅的小说
 `
 
 func Run() error {

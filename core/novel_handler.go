@@ -175,6 +175,7 @@ func subscribeNovels(ids []string) SubscribeDetails {
 			if n.Id != "" {
 				err := saveNovel(n)
 				if err != nil {
+					println("ERROR: " + err.Error())
 					sd.Success = removeArrVal(sd.Success, id)
 					sd.Failure = append(sd.Failure, id)
 				}
@@ -245,7 +246,7 @@ func saveNovel(n Novel) error {
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(n.Id, n.Title, n.UpdateDate, n.Content)
+	_, err = stmt.Exec(n.Id, n.Title, n.UpdateDate, arrToString(n.Content, ","))
 	if err != nil {
 		return err
 	}

@@ -9,6 +9,7 @@ import (
 )
 
 var IsReceiveNovel = false
+var IsRemoveNovels = false
 
 type ChanResult struct {
 	Id  string
@@ -34,7 +35,7 @@ type ContentTitle struct {
 // 机器人小说相关功能
 func novelHandler(b *tele.Bot) {
 	b.Handle(tele.OnText, func(c tele.Context) error {
-		// 判断是否等待接收novel
+		// 判断是否等待接收novels
 		if IsReceiveNovel {
 			IsReceiveNovel = false
 			var text = c.Text()
@@ -57,15 +58,29 @@ func novelHandler(b *tele.Bot) {
 			return c.Reply(reply)
 		}
 
+		// 判断是否等待接收移除novels
+		if IsRemoveNovels {
+			IsRemoveNovels = false
+			var text = c.Text()
+			err := removeNovels(strings.Split(text, ","))
+			if err != nil {
+				return c.Reply("移除失败, Error: ", err.Error())
+			}
+
+			return c.Reply("移除成功!")
+		}
+
 		return nil
 	})
 
-	b.Handle("/subnovel", func(c tele.Context) error {
+	// 订阅小说
+	b.Handle("/subnovels", func(c tele.Context) error {
 		IsReceiveNovel = true
 		return c.Reply("请发送小说ID, 如果有多个用逗号隔开, 例如: 1234,2234,3234")
 	})
 
-	b.Handle("/showsubnovel", func(c tele.Context) error {
+	// 查看已经订阅的小说
+	b.Handle("/showsubnovels", func(c tele.Context) error {
 		ns, err := queryAllNovel()
 		if err != nil {
 			return c.Reply("查询失败! Error: " + err.Error())
@@ -73,13 +88,14 @@ func novelHandler(b *tele.Bot) {
 
 		r := "查询结果:\n"
 		for i, n := range ns {
-			r += fmt.Sprintf("%d. %s\n", i, n.Title)
+			r += fmt.Sprintf("%d. %s\n", i+1, n.Title)
 			r += fmt.Sprintf("    > 地址: %s%s\n", BASE_URL+"/novel/series/", n.Id)
 		}
 
 		return c.Reply(r)
 	})
 
+	// 查看订阅的小说是否更新
 	b.Handle("/checknovelupdate", func(c tele.Context) error {
 		ns, err := queryAllNovel()
 		if err != nil {
@@ -114,6 +130,11 @@ func novelHandler(b *tele.Bot) {
 		}
 
 		return c.Reply(reply)
+	})
+
+	b.Handle("/removesubnovels", func(c tele.Context) error {
+		IsRemoveNovels = true
+		return c.Reply("请发送要移除订阅的小说ID(可以通过/showsubnovels查询), 如果有多个用逗号隔开, 例如: 1234,2234")
 	})
 }
 
@@ -260,4 +281,23 @@ func queryAllNovel() ([]Novel, error) {
 	}
 
 	return ns, nil
+}
+
+// 移除小说
+func removeNovels(ids []string) error {
+	stmt := `DELETE FROM novels where id IN (`
+	for i, id := range ids {
+		stmt += id
+		if i != len(ids)-1 {
+			stmt += ","
+		}
+	}
+	stmt += ");"
+
+	_, err := DB.Exec(stmt)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

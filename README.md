@@ -7,12 +7,13 @@
 ### 机器人设置
 
 <details>
-<summary style="cursor: pointer;user-select: none;">setcommands</summary>
+<summary style="cursor: pointer;user-select: none;">/setcommands</summary>
 <div>
-/start - 快速开始<br>
-/help - 查看帮助信息<br>
-/subnovel - 订阅小说<br>
-/showsubnovel - 查看已经订阅的小说<br>
-/checknovelupdate - 查看订阅的小说是否更新<br>
+start - 快速开始<br>
+help - 查看帮助信息<br>
+subnovels - 订阅小说<br>
+showsubnovels - 查看已经订阅的小说<br>
+checknovelupdate - 查看订阅的小说是否更新<br>
+removesubnovels - 移除订阅的小说<br>
 </div>
 </details>

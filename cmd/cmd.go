@@ -18,10 +18,9 @@ func init() {
 		Version: "1.0",
 		Name:    "pixiv telegram bot",
 		Action: func(c *cli.Context) error {
+			initDBPath()
 			println("Start...")
-			if DB_PATH == "" {
-				DB_PATH = "./database/pixiv.db"
-			}
+
 			return nil
 		},
 	}
@@ -51,5 +50,24 @@ func init() {
 
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
+	}
+}
+
+// 初始化数据库路径
+func initDBPath() {
+	if DB_PATH == "" {
+		DB_PATH = "./database/pixiv.db"
+	}
+
+	_, err := os.Stat(DB_PATH)
+	if err != nil {
+		panic(err)
+	}
+	if !os.IsExist(err) {
+		f, err := os.Create(DB_PATH)
+		defer f.Close()
+		if err != nil {
+			panic(err)
+		}
 	}
 }

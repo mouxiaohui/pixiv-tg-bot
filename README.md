@@ -3,8 +3,8 @@
 🤖 关于 pixiv 的 Telegram Bot
 
 <div >
-    <img style="width:200px; height:355px;" src="./screenshots/1.jpg"/>
-    <img style="width:200px; height:355px;" src="./screenshots/2.jpg"/>
+    <img style="width:380px; height:670px;" src="./screenshots/1.jpg"/>
+    <img style="width:380px; height:670px;" src="./screenshots/2.jpg"/>
 </div>
 
 ## 部署

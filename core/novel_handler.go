@@ -171,7 +171,20 @@ func subscribeNovels(ids []string) SubscribeDetails {
 
 	for _, id := range ids {
 		go func(id string) {
-			n := subscribeNovel(id, ch)
+			n, err := queryNovel(id)
+			if err != nil {
+				println("ERROR: " + err.Error())
+				return
+			}
+
+			if n.Id == id {
+				ch <- ChanResult{Id: id, Err: nil}
+				return
+			}
+
+			println("=====")
+
+			n = subscribeNovel(id, ch)
 			if n.Id != "" {
 				err := saveNovel(n)
 				if err != nil {
@@ -252,6 +265,35 @@ func saveNovel(n Novel) error {
 	}
 
 	return nil
+}
+
+// 查询小说
+func queryNovel(novelId string) (Novel, error) {
+	var n Novel
+	row, err := DB.Query("select * from novels where id=" + novelId)
+	if err != nil {
+		return n, err
+	}
+
+	if row.Next() {
+		var id string
+		var title string
+		var updateDate string
+		var content string
+		err = row.Scan(&id, &title, &updateDate, &content)
+		if err != nil {
+			return n, err
+		}
+
+		return Novel{
+			Id:         id,
+			Title:      title,
+			UpdateDate: updateDate,
+			Content:    strings.Split(content, ","),
+		}, nil
+	}
+
+	return n, nil
 }
 
 // 查询所有小说

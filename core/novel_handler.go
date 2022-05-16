@@ -160,8 +160,14 @@ func checkNovelUpdate(n Novel) (Novel, error) {
 			content = append(content, ct.Id)
 		}
 
-		respNovel.Body.Content = content[len(n.Content):]
+		respNovel.Body.Content = content
 		res = respNovel.Body
+		res.Content = content[len(n.Content):]
+
+		err = updateNovel(respNovel.Body)
+		if err != nil {
+			println(err.Error())
+		}
 	}
 
 	return res, nil
@@ -325,6 +331,20 @@ func queryAllNovel() ([]Novel, error) {
 	}
 
 	return ns, nil
+}
+
+// 更新数据库小说信息
+func updateNovel(n Novel) error {
+	stmt, err := DB.Prepare(`UPDATE novels SET update_date = ?, content = ? WHERE id = ?`)
+	if err != nil {
+		return err
+	}
+	_, err = stmt.Exec(n.UpdateDate, arrToString(n.Content, ","), n.Id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // 移除小说

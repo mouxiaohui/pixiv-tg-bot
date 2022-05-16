@@ -60,7 +60,8 @@ func initDBPath() {
 	}
 
 	_, err := os.Stat(DB_PATH)
-	if !os.IsExist(err) {
+	if os.IsNotExist(err) {
+		println(DB_PATH)
 		f, err := os.Create(DB_PATH)
 		defer f.Close()
 		if err != nil {
